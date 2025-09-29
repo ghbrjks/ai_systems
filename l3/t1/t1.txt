@@ -1,0 +1,61 @@
+% house(Цвет, Национальность, Напиток, Сигареты, Животное)
+
+solve(Houses) :-
+    Houses = [house(_,_,_,_,_),
+              house(_,_,_,_,_),
+              house(_,_,_,_,_),
+              house(_,_,_,_,_),
+              house(_,_,_,_,_)],
+
+    % 1. Норвежец живёт в первом доме
+    nth1(1, Houses, house(_,norwegian,_,_,_)),
+
+    % 2. Англичанин живёт в красном доме
+    member(house(red,english,_,_,_), Houses),
+
+    % 3. Зелёный дом находится слева от белого
+    left_of(house(green,_,_,_,_), house(white,_,_,_,_), Houses),
+
+    % 4. Датчанин пьёт чай
+    member(house(_,dane,tea,_,_), Houses),
+
+    % 5. Тот, кто курит Marlboro, живёт рядом с тем, кто выращивает кошек
+    next_to(house(_,_,_,marlboro,_), house(_,_,_,_,cats), Houses),
+
+    % 6. Тот, кто живёт в жёлтом доме, курит Dunhill
+    member(house(yellow,_,_,dunhill,_), Houses),
+
+    % 7. Немец курит Rothmans
+    member(house(_,german,_,rothmans,_), Houses),
+
+    % 8. Тот, кто живёт в центре, пьёт молоко
+    nth1(3, Houses, house(_,_,milk,_,_)),
+
+    % 9. Сосед того, кто курит Marlboro, пьёт воду
+    next_to(house(_,_,_,marlboro,_), house(_,_,water,_,_), Houses),
+
+    % 10. Тот, кто курит PallMall, выращивает птиц
+    member(house(_,_,_,pallmall,birds), Houses),
+
+    % 11. Швед выращивает собак
+    member(house(_,swede,_,_,dogs), Houses),
+
+    % 12. Норвежец живёт рядом с синим домом
+    next_to(house(_,norwegian,_,_,_), house(blue,_,_,_,_), Houses),
+
+    % 13. Тот, кто выращивает лошадей, живёт в синем доме
+    member(house(blue,_,_,_,horses), Houses),
+
+    % 14. Тот, кто курит Winfield, пьет пиво
+    member(house(_,_,beer,winfield,_), Houses),
+
+    % 15. В зелёном доме пьют кофе
+    member(house(green,_,coffee,_,_), Houses).
+
+% Сосед слева
+left_of(A, B, List) :- append(_, [A,B|_], List).
+
+% Дома рядом
+next_to(A, B, List) :- left_of(A, B, List).
+next_to(A, B, List) :- left_of(B, A, List).
+
