@@ -78,10 +78,10 @@ def neighbor_constraint(houses, keyA, valA, keyB, valB):
 
     return True
 
-def left_of_constraint(houses, left_цвет, right_цвет):
+def left_of_constraint(houses, left_color, right_color):
     # проверка позиции домов по цветам
-    posL = find_pos(houses, 'цвет', left_цвет)
-    posR = find_pos(houses, 'цвет', right_цвет)
+    posL = find_pos(houses, 'цвет', left_color)
+    posR = find_pos(houses, 'цвет', right_color)
 
     # проверка крайних позиций домов
     if posL is not None and posL == 4:
@@ -96,12 +96,12 @@ def left_of_constraint(houses, left_цвет, right_цвет):
     # проверки на соответствие цветов соседних домов
     if posL is not None and posR is None:
         right_idx = posL + 1
-        if houses[right_idx]['цвет'] is not None and houses[right_idx]['цвет'] != right_цвет:
+        if houses[right_idx]['цвет'] is not None and houses[right_idx]['цвет'] != right_color:
             return False
 
     if posR is not None and posL is None:
         left_idx = posR - 1
-        if houses[left_idx]['цвет'] is not None and houses[left_idx]['цвет'] != left_цвет:
+        if houses[left_idx]['цвет'] is not None and houses[left_idx]['цвет'] != left_color:
             return False
 
     return True
@@ -214,30 +214,6 @@ def backtrack(h_idx, p_idx):
         houses[h_idx][prop] = None
 
     return False
-
-def query():
-    print("\nДоступные свойства:", PROPS)
-    while True:
-        known_key = input("Введите известное свойство: ").strip().lower()
-        if known_key not in PROPS:
-            print("Некорректное свойство. Попробуйте снова.")
-            continue
-        known_value = input(f"Введите значение для {known_key}: ").strip().lower()
-        target_key = input("Какое свойство хотите узнать? ").strip().lower()
-        if target_key not in PROPS:
-            print("Некорректное свойство. Попробуйте снова.")
-            continue
-
-        # поиск значения
-        found = None
-        for h in solution:
-            if h[known_key].lower() == known_value:
-                found = h[target_key]
-                break
-        if found:
-            print(f"{target_key.capitalize()} для {known_key}={known_value} -> {found}")
-        else:
-            print("Не найдено дома с таким значением.")
 
 def prolog_like_query():
     print("\nВведите строку запроса вида: цвет, национальность, напиток, сигареты, животное")
