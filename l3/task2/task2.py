@@ -240,40 +240,64 @@ def query():
             print("Не найдено дома с таким значением.")
 
 def prolog_like_query():
-    print("\nДоступные свойства:", PROPS)
+    print("\nВведите строку запроса вида: цвет, национальность, напиток, сигареты, животное")
+
     while True:
-        known_keys = {}
-        target_keys = {}
-        dict_keys = list(DOMAINS.values())
-        for word in dict_keys:
-            print(word)
-        request = input(f"Введите запрос: ").replace(" ","").lower().split(",")
-        for word_req in request:
-            for i in range(5):
-                if word_req == "_":
-                    continue
-                elif word_req == dict_keys[i]:
-                    index = request.index(word_req)
-                    known_keys[index] = word_req
-                else:
-                    index = request.index(word_req)
-                    target_keys[index] = word_req
-        keys_k = list(known_keys.keys())
-        values_k = list(known_keys.values())
-        keys_t = list(target_keys.keys())
-        values_t = list(target_keys.values())
-        print("Индекс известных ключей")
-        for word in keys_k:
-            print("!",word,"!")
-        print("Значение известных ключей")
-        for word in values_k:
-            print("!",word,"!")
-        print("Индекс искомых ключей")
-        for word in keys_t:
-            print(word)
-        print("Значение искомых ключей")
-        for word in values_t:
-            print(word)
+        query = input("Введите запрос (или пустую строку для выхода): ").strip().lower()
+        if not query:
+            break
+
+        parts = [p.strip() for p in query.split(",")]
+        if len(parts) != 5:
+            print("Ошибка: нужно указать ровно 5 свойств через запятую!")
+            continue
+
+        known = {}
+        variables = {}
+        has_value = False
+
+        # парсинг строки
+        for i, word in enumerate(parts):
+            prop = PROPS[i]
+            if word == "_":
+                continue
+            elif word in DOMAINS[prop]:
+                known[prop] = word
+                has_value = True
+            else:
+                variables[prop] = word
+
+        # обработка ошибок
+        if not has_value:
+            print("Ошибка: должен быть хотя бы один известный параметр.")
+            continue
+        if len(variables) > 0 and len(known) != 1:
+            print("Ошибка: не может быть более одного известного свойства при наличии переменных.")
+            continue
+
+        # 1 случай: только известные свойства
+        if len(variables) == 0:
+            match_found = any(all(h[k] == v for k, v in known.items()) for h in solution)
+            print("true" if match_found else "false")
+            continue
+
+        # 2 случай: одно известное свойство + переменные
+        known_prop, known_val = list(known.items())[0]
+        matched_house = None
+        for h in solution:
+            if h[known_prop] == known_val:
+                matched_house = h
+                break
+
+        if not matched_house:
+            print("false")
+            continue
+
+        # вывод значений для всех переменных
+        for prop, var_name in variables.items():
+            print(f"{var_name} = {matched_house[prop]}")
+
+
 
 
 
