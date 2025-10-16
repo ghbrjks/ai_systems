@@ -3,16 +3,16 @@ from tkinter import messagebox
 import numpy as np
 from PIL import Image, ImageDraw, ImageTk
 
-CANVAS_SIZE = 70
-IMAGE_SIZE = 70
+CANVAS_SIZE = 140
+IMAGE_SIZE = 140
 SHAPES = ["Круг", "Квадрат", "Треугольник"]
-TRAIN_PER_SHAPE = 5
+TRAIN_PER_SHAPE = 50
 
 # фигуры для обучения
 def generate_shape_series(shape_name):
     images = []
-    target_area = 550  # целевая площадь в пикселях
-    variations = np.linspace(-0.2, 1.4, TRAIN_PER_SHAPE)  # разброс
+    target_area = 1100  # целевая площадь в пикселях
+    variations = np.linspace(-0.8, 1.4, TRAIN_PER_SHAPE)  # разброс
 
     for var in variations:
         img = Image.new("L", (IMAGE_SIZE, IMAGE_SIZE), 0)
@@ -41,7 +41,7 @@ def generate_shape_series(shape_name):
                 (cx - s, cy + h // 2),
                 (cx + s, cy + h // 2)
             ]
-            draw.polygon(pts, outline=255, width=4)
+            draw.polygon(pts, outline=255, width=6)
 
         # преобразование в бинарный массив
         arr = np.array(img)
@@ -79,7 +79,7 @@ def update_stats(is_correct):
 # рисование
 def draw(event):
     x, y = event.x, event.y
-    r = 2
+    r = 3
     canvas.create_oval(x - r, y - r, x + r, y + r, fill="black", outline="black")
     draw_img.ellipse([x - r, y - r, x + r, y + r], fill=255)
 
@@ -100,7 +100,6 @@ def recognize_shape():
     dist_text.delete(1.0, tk.END)
     for shape in SHAPES:
         dist_text.insert(tk.END, f"{shape}:\n")
-        dist_text.insert(tk.END, f"  Расстояния: {distances[shape]}\n")
         dist_text.insert(tk.END, f"  Потенциал: {potentials[shape]:.2f}\n\n")
 
     # проверка
