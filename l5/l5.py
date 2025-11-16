@@ -105,10 +105,8 @@ def generate_test_data(seed=89):
             else:
                 z_coord = random.uniform(-10.0, -0.1)
             
-            # Нормализация координат
             normalized_coords = normalize_coordinates([x_coord, y_coord, z_coord])
             
-            # Правильный октант для тестирования
             target = get_octant_label(x_coord, y_coord, z_coord)
             test_data.append((normalized_coords, target))
     
@@ -165,8 +163,7 @@ def train_perceptron(training_data, num_inputs=3, num_outputs=8, learning_rate=1
         if total_error == 0:
             print(f"Обучение завершено на эпохе {epoch+1} (ошибка = {total_error})")
             break
-    if total_error != 0:
-         print(f"Обучение завершено на эпохе {epochs} (ошибка = {total_error})")
+    print(f"Обучение завершено на эпохе {epochs} (ошибка = {total_error})")
     
     return weights, thresholds
 
