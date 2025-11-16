@@ -1,61 +1,95 @@
 ﻿import tkinter as tk
 from tkinter import messagebox
 import numpy as np
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw, ImageTk, ImageOps
 
 CANVAS_SIZE = 140
 IMAGE_SIZE = 140
-SHAPES = ["Круг", "Квадрат", "Треугольник"]
 TRAIN_PER_SHAPE = 50
 
 # фигуры для обучения
+SHAPES = [
+    "Круг", "Овал горизонтальный", "Овал вертикальный",
+    "Квадрат", "Ромб",
+    "Треугольник вверх", "Треугольник вниз",
+    "Треугольник вправо", "Треугольник влево",
+    "Прямоугольник горизонтальный", "Прямоугольник вертикальный"
+]
+
+# генерация обучающих изображений
 def generate_shape_series(shape_name):
     images = []
-    target_area = 1100  # целевая площадь в пикселях
-    variations = np.linspace(-0.8, 1.4, TRAIN_PER_SHAPE)  # разброс
 
-    for var in variations:
+    canvas_area = IMAGE_SIZE * IMAGE_SIZE
+    min_area = canvas_area / 6
+    max_area = canvas_area * 0.9
+    areas = np.linspace(min_area, max_area, TRAIN_PER_SHAPE)
+    line_width = 4
+
+    for area in areas:
         img = Image.new("L", (IMAGE_SIZE, IMAGE_SIZE), 0)
         draw = ImageDraw.Draw(img)
         cx, cy = IMAGE_SIZE // 2, IMAGE_SIZE // 2
 
         if shape_name == "Круг":
-            area = target_area * (1 + var)
             r = int(np.sqrt(area / np.pi))
-            r = np.clip(r, 5, IMAGE_SIZE // 2 - 2)
-            draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=255, width=4)
+            draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=255, width=line_width)
+
+        elif shape_name == "Овал горизонтальный":
+            a = int(np.sqrt(area / np.pi) * 1.3)
+            b = int(np.sqrt(area / np.pi) * 0.7)
+            draw.ellipse((cx - a, cy - b, cx + a, cy + b), outline=255, width=line_width)
+
+        elif shape_name == "Овал вертикальный":
+            a = int(np.sqrt(area / np.pi) * 0.7)
+            b = int(np.sqrt(area / np.pi) * 1.3)
+            draw.ellipse((cx - a, cy - b, cx + a, cy + b), outline=255, width=line_width)
 
         elif shape_name == "Квадрат":
-            area = target_area * (1 + var)
             s = int(np.sqrt(area) / 2)
-            s = np.clip(s, 5, IMAGE_SIZE // 2 - 2)
-            draw.rectangle((cx - s, cy - s, cx + s, cy + s), outline=255, width=4)
+            draw.rectangle((cx - s, cy - s, cx + s, cy + s), outline=255, width=line_width)
 
-        elif shape_name == "Треугольник":
-            area = target_area * (1 + var)
-            s = int(np.sqrt(area / np.sqrt(3)))
-            s = np.clip(s, 5, IMAGE_SIZE // 2 - 4)
+        elif shape_name == "Ромб":
+            d = int(np.sqrt(area) / 2)
+            pts = [(cx, cy - d), (cx + d, cy), (cx, cy + d), (cx - d, cy)]
+            draw.polygon(pts, outline=255, width=line_width)
+
+        elif "Треугольник" in shape_name:
+            s = int(np.sqrt(4 * area / np.sqrt(3)) / 4)
             h = int(np.sqrt(3) * s)
-            pts = [
-                (cx, cy - h // 2),
-                (cx - s, cy + h // 2),
-                (cx + s, cy + h // 2)
-            ]
-            draw.polygon(pts, outline=255, width=6)
+            if "вверх" in shape_name:
+                pts = [(cx, cy - h // 2), (cx - s, cy + h // 2), (cx + s, cy + h // 2)]
+            elif "вниз" in shape_name:
+                pts = [(cx, cy + h // 2), (cx - s, cy - h // 2), (cx + s, cy - h // 2)]
+            elif "вправо" in shape_name:
+                pts = [(cx + h // 2, cy), (cx - h // 2, cy - s), (cx - h // 2, cy + s)]
+            else:
+                pts = [(cx - h // 2, cy), (cx + h // 2, cy - s), (cx + h // 2, cy + s)]
+            draw.polygon(pts, outline=255, width=line_width)
 
-        # преобразование в бинарный массив
+        elif "Прямоугольник горизонтальный" == shape_name:
+            w = int(np.sqrt(area * 1.5))
+            h = int(w / 2)
+            draw.rectangle((cx - w//2, cy - h//2, cx + w//2, cy + h//2), outline=255, width=line_width)
+
+        elif "Прямоугольник вертикальный" == shape_name:
+            h = int(np.sqrt(area * 1.5))
+            w = int(h / 2)
+            draw.rectangle((cx - w//2, cy - h//2, cx + w//2, cy + h//2), outline=255, width=line_width)
+
         arr = np.array(img)
         bin_arr = (arr > 128).astype(np.uint8)
         images.append(bin_arr)
 
     return images
 
+
 # метод потенциальных функций
 def hamming_distance(a, b):
     return np.sum(a != b)
 
 def potential(R):
-    return 1000000 / (1 + R ** 2)
+    return 1_000_000 / (1 + R ** 2)
 
 def recognize(input_img):
     potentials = {}
@@ -79,7 +113,7 @@ def update_stats(is_correct):
 # рисование
 def draw(event):
     x, y = event.x, event.y
-    r = 3
+    r = 2
     canvas.create_oval(x - r, y - r, x + r, y + r, fill="black", outline="black")
     draw_img.ellipse([x - r, y - r, x + r, y + r], fill=255)
 
@@ -90,20 +124,47 @@ def clear_canvas():
 
 # распознавание
 def recognize_shape():
-    # получение изображения
     img_arr = np.array(image)
     img_bin = (img_arr > 128).astype(np.uint8)
 
-    recognized, distances, potentials = recognize(img_bin)
+    ys, xs = np.where(img_bin > 0)
+    if len(xs) == 0 or len(ys) == 0:
+        messagebox.showwarning("Ошибка", "Нарисуйте фигуру перед распознаванием!")
+        return
 
-    # вывод результатов
+    # выделение фигуры
+    x_min, x_max = xs.min(), xs.max()
+    y_min, y_max = ys.min(), ys.max()
+    cropped = img_bin[y_min:y_max + 1, x_min:x_max + 1]
+
+    # масштабирование и центрирование в поле IMAGE_SIZE x IMAGE_SIZE
+    cropped_img = Image.fromarray(cropped * 255)
+    scaled_img = ImageOps.pad(
+        cropped_img,
+        (IMAGE_SIZE, IMAGE_SIZE),
+        color=0,
+        centering=(0.5, 0.5)
+    )
+    centered = (np.array(scaled_img) > 128).astype(np.uint8)
+
+    recognized, distances, potentials = recognize(centered)
+
+    # вывод потенциалов
     dist_text.delete(1.0, tk.END)
     for shape in SHAPES:
-        dist_text.insert(tk.END, f"{shape}:\n")
-        dist_text.insert(tk.END, f"  Потенциал: {potentials[shape]:.2f}\n\n")
+        dist_text.insert(tk.END, f"{shape}:\n  Потенциал: {potentials[shape]:.2f}\n\n")
 
-    # проверка
-    result = messagebox.askyesno("Результат", f"Это {recognized}?")
+    # группировка по категориям
+    if "Треугольник" in recognized:
+        question = "Это треугольник?"
+    elif "Прямоугольник" in recognized:
+        question = "Это прямоугольник?"
+    elif "Овал" in recognized:
+        question = "Это овал?"
+    else:
+        question = f"Это {recognized.lower()}?"
+
+    result = messagebox.askyesno("Результат", question)
     update_stats(result)
 
 # интерфейс
@@ -132,10 +193,10 @@ btn_clear.pack(pady=5)
 stat_label = tk.Label(frame_right, text="Угадано: 0/0\nТочность: 0%", font=("Arial", 12), justify="left")
 stat_label.pack(anchor="nw")
 
-dist_text = tk.Text(frame_right, width=45, height=20, font=("Consolas", 10))
+dist_text = tk.Text(frame_right, width=45, height=25, font=("Consolas", 10))
 dist_text.pack(fill=tk.BOTH, expand=True)
 
-# генерация обучающей выборки
+# обучение
 train_data = {shape: generate_shape_series(shape) for shape in SHAPES}
 total_attempts = 0
 correct_attempts = 0
