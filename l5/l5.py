@@ -82,6 +82,7 @@ def generate_training_data(num_points_per_octant=10, seed=42):
 def generate_test_data(seed=89):
     random.seed(seed)
     test_data = []
+    graph_data = []
     points_per_octant = 4
             
     for octant_idx in range(8):
@@ -107,10 +108,13 @@ def generate_test_data(seed=89):
             
             normalized_coords = normalize_coordinates([x_coord, y_coord, z_coord])
             
+            graph_coords = [x_coord, y_coord, z_coord]
+            graph_data.append(graph_coords)
+
             target = get_octant_label(x_coord, y_coord, z_coord)
             test_data.append((normalized_coords, target))
     
-    return test_data
+    return test_data, graph_data
 
 def activate(net, thresholds):
     out = np.zeros_like(net)
@@ -228,12 +232,12 @@ def main():
 
     print("\nГенерация тестовой выборки...")
     test_data = generate_test_data()
-    print(f"Тестовая выборка: {len(test_data)} точек.")
+    print(f"Тестовая выборка: {len(test_data[0])} точек.")
 
     print("\nТестирование персептрона...")
     correct_predictions = 0
-    total_predictions = len(test_data)
-    for input_coords, true_octant in test_data:
+    total_predictions = len(test_data[0])
+    for input_coords, true_octant in test_data[0]:
         predicted_octant = predict(input_coords, perceptron_weights, perceptron_thresholds)
         if predicted_octant == true_octant and predicted_octant != -1:
             correct_predictions += 1
@@ -300,6 +304,27 @@ def main():
     canvas = FigureCanvasTkAgg(fig, master=right_frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    for point in test_data[1]:
+        normalized_input = normalize_coordinates(point)
+        predicted_octant = predict(normalized_input, perceptron_weights, perceptron_thresholds)
+        x,y,z = point
+        if predicted_octant == 0:
+            ax.scatter(x, y, z, c='yellow', s=50)
+        elif predicted_octant == 1:
+            ax.scatter(x, y, z, c='red', s=50)
+        elif predicted_octant == 2:
+            ax.scatter(x, y, z, c='green', s=50)
+        elif predicted_octant == 3:
+            ax.scatter(x, y, z, c='blue', s=50)
+        elif predicted_octant == 4:
+            ax.scatter(x, y, z, c='black', s=50)
+        elif predicted_octant == 5:
+            ax.scatter(x, y, z, c='pink', s=50)
+        elif predicted_octant == 6:
+            ax.scatter(x, y, z, c='orange', s=50)
+        else:
+            ax.scatter(x, y, z, c='purple', s=50)
+        canvas.draw()
 
     user_points = []
     user_stats = {
