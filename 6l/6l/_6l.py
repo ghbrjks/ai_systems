@@ -42,7 +42,7 @@ def find_neuron_class_assignments(winners, true_labels, n_neurons):
 # загрузка датасета
 def load_and_preprocess_data():
     iris = load_iris()
-    points = iris.data.astype(np.float64)
+    points = iris.data
     true_classes = iris.target
     feature_names = iris.feature_names
     class_names = iris.target_names
@@ -58,18 +58,17 @@ def run_kohonen_training(train_data, n_neurons, total_epochs):
     n_inputs = train_data.shape[1]
     
     chosen_indices = np.random.choice(len(train_data), size=n_neurons, replace=False)
-    # weights = np.random.rand(n_neurons, n_inputs).astype(np.float64)
+    # weights = np.random.rand(n_neurons, n_inputs)
     # for i in range(weights.shape[0]):
     #     weights[i] = normalize_vector(weights[i])
-    weights = train_data[chosen_indices].copy().astype(np.float64)
+    weights = train_data[chosen_indices].copy()
     for i in range(weights.shape[0]):
         weights[i] = normalize_vector(weights[i])
     initial_learning_rate = 0.7
     learning_rates = np.full(n_neurons, initial_learning_rate, dtype=np.float64)
 
     print(f"Начало обучения сети...")
-    print(f"Всего шагов/эпох: {total_epochs}")
-    print(f"Размер обучающей выборки: {train_data.shape[0]}")
+    print(f"Эпох: {total_epochs}")
 
     for i in range(total_epochs):
         # выбор одного обучающего вектора
@@ -117,19 +116,21 @@ def calculate_accuracy_metrics(final_weights, test_data, test_true_labels):
     
     return overall_accuracy
     
-def on_submit_point(entry_x, entry_y, ax2, canvas, true_labels, final_weights, class_names, neuron_assignments, stats_text_widget):
+def on_submit_point(entries, ax2, canvas, true_labels, final_weights, class_names, neuron_assignments, stats_text_widget):
     global user_points, user_stats
-
+    
+    # обработка ввода
     try:
-        x = float(entry_x.get())
-        y = float(entry_y.get())
+        user_input_full = np.array([
+            float(entries[0].get()),
+            float(entries[1].get()),
+            float(entries[2].get()),
+            float(entries[3].get())
+        ])
     except ValueError:
-        messagebox.showerror("Ошибка", "Введите числовые значения для X и Y.")
+        messagebox.showerror("Ошибка", "Введите числовые значения для всех признаков.")
         return
 
-    user_input_full = np.zeros(final_weights.shape[1])
-    user_input_full[0] = x
-    user_input_full[1] = y
     normalized_user_input = normalize_vector(user_input_full)
 
     user_winner_idx = find_winner(normalized_user_input, final_weights)
@@ -140,14 +141,16 @@ def on_submit_point(entry_x, entry_y, ax2, canvas, true_labels, final_weights, c
     color_map = {name: ['blue', 'orange', 'green'][i] for i, name in enumerate(class_names)}
     point_color = color_map[predicted_class_name]
 
-    ax2.scatter(x, y, c=point_color, s=50, alpha=0.7, zorder=5)
+    ax2.scatter(user_input_full[0], user_input_full[1], c=point_color, s=50, alpha=0.7, zorder=5)
+
+    canvas.draw()
 
     user_stats["total"] += 1
 
     correct_answer = messagebox.askyesnocancel(
         "Проверка классификации",
-        f"Сеть классифицировала точку ({x:.2f}, {y:.2f}) как '{predicted_class_name}' (Нейрон {user_winner_idx}).\n"
-        f"Является ли это правильной классификацией?"
+        f"Сеть классифицировала точку {user_input_full} как '{predicted_class_name}' (Нейрон {user_winner_idx}).\n"
+        f"Это правильнный класс?"
     )
 
     is_correct = correct_answer
@@ -155,17 +158,14 @@ def on_submit_point(entry_x, entry_y, ax2, canvas, true_labels, final_weights, c
         user_stats["correct"] += 1
             
     user_stats["details"].append({
-        "coords": (x, y),
+        "coords": tuple(user_input_full),
         "predicted": predicted_class_name,
-        "true_input": None,
         "correct": is_correct
     })
 
     update_stats_display(stats_text_widget)
 
-    canvas.draw()
 
-   
 def update_stats_display(stats_widget):
     stats_widget.config(state=tk.NORMAL)
     stats_widget.delete(1.0, tk.END)
@@ -181,7 +181,8 @@ def update_stats_display(stats_widget):
     stats_text += "Детали:\n"
     for detail in user_stats["details"]:
         correctness = "Правильно" if detail['correct'] else "Неправильно"
-        stats_text += f"  Точка {detail['coords']}: Предсказано '{detail['predicted']}', {correctness}\n"
+        coords_str = "(" + ", ".join([f"{c:.2f}" for c in detail['coords']]) + ")"
+        stats_text += f"  Точка {coords_str}: Предсказано '{detail['predicted']}', {correctness}\n"
 
     stats_widget.insert(tk.END, stats_text)
     stats_widget.config(state=tk.DISABLED)
@@ -190,6 +191,14 @@ def update_stats_display(stats_widget):
 def main():
     # загрузка данных
     points_norm, true_class, feature_names, target_names = load_and_preprocess_data()
+
+    # примеры пользователських точек
+    print("\nПримеры данных из датасета:")
+    for class_idx, class_name in enumerate(target_names):
+        example_idx = np.where(true_class == class_idx)[0][0]
+        example_point = points_norm[example_idx]
+        features_str = ", ".join([f"{name}: {val:.2f}" for name, val in zip(feature_names, example_point)])
+        print(f"{class_name}: {features_str}")
 
     # параметры сети
     num_neurons = 3
@@ -225,24 +234,22 @@ def main():
     title_label = ttk.Label(left_frame, text="Классификация точки", font=("Arial", 12, "bold"))
     title_label.pack(pady=(0, 10))
 
-    input_frame = ttk.Frame(left_frame)
-    input_frame.pack(fill=tk.X, pady=5)
+    input_frame = ttk.LabelFrame(left_frame, text="Входные данные")
+    input_frame.pack(fill=tk.X, pady=5, padx=5)
 
-    ttk.Label(input_frame, text="Длина лепестка (см):").grid(row=0, column=0, sticky=tk.W)
-    entry_x = ttk.Entry(input_frame, width=10)
-    entry_x.grid(row=0, column=1, padx=(5, 0))
-    entry_x.insert(0, "0.0")
-
-    ttk.Label(input_frame, text="Ширина лепестка (см):").grid(row=1, column=0, sticky=tk.W)
-    entry_y = ttk.Entry(input_frame, width=10)
-    entry_y.grid(row=1, column=1, padx=(5, 0))
-    entry_y.insert(0, "0.0")
+    entries = []
+    for i, name in enumerate(feature_names):
+        ttk.Label(input_frame, text=f"{name} (см):").grid(row=i, column=0, sticky=tk.W, padx=(0, 5))
+        entry = ttk.Entry(input_frame, width=10)
+        entry.grid(row=i, column=1, sticky=tk.W)
+        entry.insert(0, "0.0")
+        entries.append(entry)
 
     submit_button = ttk.Button(
         left_frame,
         text="Добавить точку",
         command=lambda: on_submit_point(
-            entry_x, entry_y, ax2, canvas, true_class, final_weights, target_names, neuron_assignments, stats_text
+            entries, ax2, canvas, true_class, final_weights, target_names, neuron_assignments, stats_text
         )
     )
     submit_button.pack(pady=10)
@@ -256,47 +263,50 @@ def main():
 
     update_stats_display(stats_text)
 
+
     # правая панель
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
     color_map = {name: ['blue', 'orange', 'green'][i] for i, name in enumerate(target_names)}
 
-    # график 1
+    # график точек датасета
     for i, class_name in enumerate(target_names):
         mask = true_class == i
         ax1.scatter(
             points_norm[mask, 0],
             points_norm[mask, 1],
             c=color_map[class_name],
-            label=f'{class_name}',
             s=50,
             alpha=0.7
         )
-    ax1.set_title('Распределение точек Iris (по истинным меткам)')
+    ax1.set_title('Распределение точек Iris')
     ax1.set_xlabel(feature_names[0])
     ax1.set_ylabel(feature_names[1])
-    ax1.legend(loc='upper left')
+    ax1.legend(loc='upper left', labels=target_names)
 
-    # график 2
-    legend_elements = []
+    # график нейронов
+    points_by_associated_class = {class_name: [] for class_name in target_names}
     for neuron_id in range(len(final_weights)):
         if neuron_assignments[neuron_id] is None:
             continue
         mask = winners == neuron_id
         dominant_class_idx = neuron_assignments[neuron_id]
         dominant_class_name = target_names[dominant_class_idx]
-        color_for_this_neuron = color_map[dominant_class_name]
-        ax2.scatter(
-            points_norm[mask, 0],
-            points_norm[mask, 1],
-            c=color_for_this_neuron,
-            s=50,
-            alpha=0.7,
-            label=f'{dominant_class_name} (нейрон {neuron_id})'
-        )
-        if not any(dominant_class_name in elem.get_label() for elem in legend_elements):
-             from matplotlib.lines import Line2D
-             legend_elements.append(Line2D([0], [0], marker='o', color='w', label=dominant_class_name, markerfacecolor=color_for_this_neuron, markersize=6))
+        points_by_associated_class[dominant_class_name].append(points_norm[mask])
+
+    for class_name in target_names:
+        all_points_for_class = points_by_associated_class[class_name]
+        if all_points_for_class:
+            combined_points = np.vstack(all_points_for_class)
+            ax2.scatter(
+                combined_points[:, 0],
+                combined_points[:, 1],
+                c=color_map[class_name],
+                s=50,
+                alpha=0.7,
+                label=class_name
+            )
+
     ax2.scatter(
         final_weights[:, 0],
         final_weights[:, 1],
@@ -308,7 +318,7 @@ def main():
     ax2.set_title('Активация нейронов Кохонена')
     ax2.set_xlabel(feature_names[0])
     ax2.set_ylabel(feature_names[1])
-    ax2.legend(handles=legend_elements + [ax2.collections[-1]], loc='upper left')
+    ax2.legend(loc='upper left')
 
     canvas = FigureCanvasTkAgg(fig, master=right_frame)
     canvas.draw()
